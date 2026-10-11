@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build LibreSprite Windows EXE
 
 on:
   push:
@@ -9,27 +9,52 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Download repository
+      - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Install MinGW and SDL2
-        shell: pwsh
-        run: |
-          choco install mingw -y
-          vcpkg install sdl2:x64-mingw-dynamic
+      - name: Install MSYS2, GCC and SDL2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-pkgconf
 
-      - name: Configure compiler
-        shell: bash
+      - name: Verify compiler and SDL2
+        shell: msys2 {0}
         run: |
-          echo "C:/ProgramData/chocolatey/bin" >> "$GITHUB_PATH"
+          set -eux
+          which g++
+          g++ --version
+          pkg-config --modversion sdl2
+          test -f /mingw64/include/SDL2/SDL.h
+          ls -l /mingw64/lib/libSDL2*
 
-      - name: Compile LibreSprite
-        shell: bash
+      - name: Compile executable
+        shell: msys2 {0}
         run: |
-          g++ -std=c++17 -O2 main_gui.cpp LibreSpriteCore.cpp -o libresprite.exe -mwindows -static -I"C:/vcpkg/installed/x64-mingw-dynamic/include" -L"C:/vcpkg/installed/x64-mingw-dynamic/lib" -lmingw32 -lSDL2main -lSDL2
+          set -eux
+          g++ -std=c++17 -O2 \
+            main_gui.cpp LibreSpriteCore.cpp \
+            -o libresprite.exe \
+            -mwindows \
+            -I/mingw64/include \
+            -L/mingw64/lib \
+            -lmingw32 -lSDL2main -lSDL2 \
+            -static-libgcc -static-libstdc++
+
+      - name: Verify executable
+        shell: msys2 {0}
+        run: |
+          test -f libresprite.exe
+          ls -lh libresprite.exe
+          file libresprite.exe
 
       - name: Upload Windows executable
         uses: actions/upload-artifact@v4
         with:
           name: libresprite-windows
           path: libresprite.exe
+          if-no-files-found: error
