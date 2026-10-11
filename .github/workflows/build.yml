@@ -1,4 +1,5 @@
 name: Build Windows EXE
+
 on:
   push:
   workflow_dispatch:
@@ -6,14 +7,21 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install SDL2
+        shell: pwsh
+        run: |
+          vcpkg install sdl2:x64-mingw-dynamic
+
       - name: Compile
         shell: bash
-        run: g++ -std=c++17 -O2 main_gui.cpp LibreSpriteCore.cpp -o libresprite.exe -mwindows -static
+        run: |
+          g++ -std=c++17 -O2 main_gui.cpp LibreSpriteCore.cpp -o libresprite.exe -mwindows -static -I"C:/vcpkg/installed/x64-mingw-dynamic/include" -L"C:/vcpkg/installed/x64-mingw-dynamic/lib" -lmingw32 -lSDL2main -lSDL2
 
-      - name: Upload exe
+      - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
           name: libresprite-windows
